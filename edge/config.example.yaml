@@ -1,0 +1,75 @@
+# PDKS Edge Agent - örnek yapılandırma
+# Her terminal (kapı) için bir kopya; terminal_code panelde tanımlı olmalı.
+
+terminal_code: "MERKEZ-GIRIS-1"
+
+server:
+  base_url: "https://pdks.sirket.local"
+  # Panelden terminal oluşturulurken üretilir, bir kez gösterilir.
+  api_key: "BURAYA_TERMINAL_API_ANAHTARI"
+  # Kurum içi CA kullanıyorsanız sertifika yolunu yazın:
+  # verify_tls: "/etc/ssl/certs/sirket-ca.pem"
+  verify_tls: true
+
+# --- KART OKUYUCU -----------------------------------------------------
+# Donanım seçimi yalnızca burada. Kod değişmez.
+
+# 1) PC/SC uyumlu NFC okuyucu (ÖNERİLEN - ACR122U ve muadilleri)
+reader:
+  type: pcsc
+  reader_index: 0
+
+# 2) USB HID "klavye taklidi" okuyucu (en ucuz başlangıç)
+# reader:
+#   type: hid
+#   # udev kuralıyla sabit yol vermek en güvenilir yöntemdir:
+#   device_path: "/dev/input/by-id/usb-RFID_Reader-event-kbd"
+#   # veya cihaz adından bul:
+#   # vendor_name: "RFID"
+
+# 3) Seri port üzerinden veri gönderen duvar tipi okuyucu
+# reader:
+#   type: serial
+#   port: "/dev/ttyUSB0"
+#   baudrate: 9600
+#   technology: mifare
+
+# 4) Donanımsız geliştirme / test
+# reader:
+#   type: mock
+#   trigger_file: "/tmp/pdks_card"
+
+# --- KAMERA -----------------------------------------------------------
+camera:
+  enabled: true
+  device_index: 0
+  # KVKK veri minimizasyonu: kimlik teyidi için bu çözünürlük yeterli.
+  width: 640
+  height: 480
+  jpeg_quality: 75
+  # USB kilitlenmelerine karşı her çekimde aç-kapa (varsayılan)
+  keep_open: false
+
+# --- DÖNEN QR KOD (opsiyonel ikinci kanal) ----------------------------
+# Terminal ekranında birkaç saniyede bir değişen QR kod gösterilir;
+# çalışan telefonuyla okutur. Kart okuyucusu arızalandığında yedek,
+# okuyucu kurulmayan noktalarda tek kanal olarak kullanılabilir.
+#
+# Kod TAMAMEN YERELDE üretilir: internet kopsa bile ekranda dönmeye
+# devam eder.
+qr:
+  enabled: false
+  # Kurulumda sunucudan alınan, bu terminale özel anahtar.
+  # Sunucu bunu kendi ana anahtarından türetir, veritabanında saklamaz.
+  secret: "BURAYA_TERMINAL_QR_ANAHTARI"
+  period_seconds: 30
+  png_path: "/run/pdks-edge/qr.png"
+
+# --- YEREL KUYRUK -----------------------------------------------------
+queue_db_path: "/var/lib/pdks-edge/queue.db"
+photo_spool_dir: "/var/lib/pdks-edge/photos"
+
+read_timeout_seconds: 1.0
+heartbeat_interval_seconds: 60.0
+# Kartı iki kez değdirme kazası bu pencere içinde elenir
+duplicate_window_seconds: 10.0

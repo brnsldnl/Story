@@ -1,0 +1,31 @@
+[project]
+name = "pdks-edge"
+version = "0.1.0"
+description = "PDKS terminal agent: kart okuyucu + kamera"
+requires-python = ">=3.11"
+
+# Çekirdek bağımlılıklar - her kurulumda gerekli
+dependencies = [
+    "httpx>=0.27",   # BSD
+    "pyyaml>=6.0",   # MIT
+]
+
+[project.optional-dependencies]
+# Donanıma göre yalnızca gerekli olanı kurun
+camera = ["opencv-python-headless>=4.10"]  # Apache-2.0
+pcsc = ["pyscard>=2.0"]                    # LGPL-2.1
+hid = ["evdev>=1.7"]                       # BSD
+serial = ["pyserial>=3.5"]                 # BSD
+qr = ["qrcode[pil]>=7.4"]                   # BSD
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.scripts]
+pdks-edge = "pdks_edge.__main__:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 95
+target-version = "py311"
