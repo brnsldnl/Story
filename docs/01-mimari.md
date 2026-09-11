@@ -95,7 +95,7 @@ Yön belirleme (`toggle` modu) lokasyon bazlıdır: bir çalışanın Ankara
 ## En kritik tasarım kararı: ham veri / türetilmiş veri ayrımı
 
 ```
-card_reads        (HAM - asla UPDATE/DELETE edilmez)
+attendance_events (HAM - asla UPDATE/DELETE edilmez, kanaldan bağımsız)
     +
 adjustments       (manuel düzeltmeler, onay zinciriyle, ayrı tabloda)
     +
@@ -119,6 +119,26 @@ Kazandırdıkları:
 - **Güven** — Hiçbir yönetici ham geçiş kaydını sessizce değiştiremez.
 
 Bu kararı baştan vermezseniz altı ay sonra geri dönüşü çok pahalıdır.
+
+---
+
+## Kanal bağımsızlığı
+
+Okutma kaydı hangi yoldan geldiğinden bağımsızdır. `attendance_events` tablosu
+üç kanalı birden taşır:
+
+| Kanal | Nasıl | Nerede kullanılır |
+|---|---|---|
+| `card` | Terminalde kart okutulur, fotoğraf çekilir | Asıl kanal |
+| `qr` | Terminal ekranındaki dönen QR telefonla okutulur | Yedek / donanımsız nokta |
+| `manual` | Yönetici elle girer (düzeltme akışı) | İstisna |
+
+Puantaj motoru kanalı bilmez; bir hareketin giriş mi çıkış mı olduğuyla
+ilgilenir. Bu sayede yeni bir kanal eklemek motoru değiştirmez, ve QR ile
+kart aynı gün içinde karışık kullanılabilir (kartını unutan personel o gün
+QR ile okutur, puantajı doğru hesaplanır).
+
+Ayrıntı: [04-qr-ve-konum.md](04-qr-ve-konum.md)
 
 ---
 

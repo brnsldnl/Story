@@ -2,7 +2,7 @@
 -- PDKS (Personel Devam Kontrol Sistemi) - Çekirdek şema
 --
 -- Tasarım ilkesi: HAM VERİ ile HESAPLANMIŞ VERİ kesin olarak ayrılır.
---   card_reads      -> ham okuma, asla UPDATE/DELETE edilmez
+--   attendance_events      -> ham okuma, asla UPDATE/DELETE edilmez
 --   adjustments     -> manuel düzeltmeler ayrı tabloda, onay zinciriyle
 --   attendance_days -> ham veri + düzeltmelerden TÜRETİLİR, her zaman
 --                      sıfırdan yeniden hesaplanabilir
@@ -24,9 +24,23 @@ CREATE TABLE sites (
     name        TEXT        NOT NULL,
     timezone    TEXT        NOT NULL DEFAULT 'Europe/Istanbul',
     address     TEXT,
+    -- Coğrafi çit (geofence) merkezi. QR ile okutmada konum doğrulaması
+    -- için kullanılır; kart okutmada gerekmez.
+    latitude            DOUBLE PRECISION,
+    longitude           DOUBLE PRECISION,
+    geofence_radius_m   INTEGER     NOT NULL DEFAULT 150,
+    -- reject : çit dışından okutma reddedilir
+    -- flag   : kaydedilir ama işaretlenir, amir onayına düşer
+    -- off    : konum doğrulaması yapılmaz
+    geofence_enforcement TEXT       NOT NULL DEFAULT 'flag'
+                         CHECK (geofence_enforcement IN ('reject', 'flag', 'off')),
     active      BOOLEAN     NOT NULL DEFAULT TRUE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+COMMENT ON COLUMN sites.geofence_enforcement IS
+    'Çit dışından gelen okutmaya ne yapılacağı. Varsayılan flag: kaydı '
+    'düşürmek yerine işaretlemek, sorunu araştırılabilir bırakır.';
 
 COMMENT ON COLUMN sites.timezone IS
     'Lokasyon bazlı saat dilimi. Tüm zamanlar UTC saklanır, gün sınırı '
@@ -45,6 +59,14 @@ CREATE TABLE terminals (
                     CHECK (direction_mode IN ('in', 'out', 'toggle')),
     api_key_hash    TEXT        NOT NULL,
     camera_enabled  BOOLEAN     NOT NULL DEFAULT TRUE,
+    -- Terminal ekranında dönen QR kod gösterilsin mi? Kart okuyucusu
+    -- olmayan noktalarda tek başına, olan noktalarda yedek kanal olarak.
+    qr_enabled      BOOLEAN     NOT NULL DEFAULT FALSE,
+    -- Terminal bazlı çit merkezi. NULL ise lokasyonunki kullanılır;
+    -- birbirinden uzak kapıları olan kampüslerde bu ayrım gerekir.
+    latitude            DOUBLE PRECISION,
+    longitude           DOUBLE PRECISION,
+    geofence_radius_m   INTEGER,
     last_seen_at    TIMESTAMPTZ,
     agent_version   TEXT,
     active          BOOLEAN     NOT NULL DEFAULT TRUE,
@@ -156,41 +178,115 @@ CREATE INDEX idx_photo_access_photo ON photo_access_log(photo_id);
 CREATE INDEX idx_photo_access_user ON photo_access_log(user_id, accessed_at);
 
 -- ---------------------------------------------------------------------
--- HAM OKUMA - değiştirilemez kayıt
+-- HAM OKUTMA KAYDI - değiştirilemez
+--
+-- Tablo kanaldan bağımsızdır: kart okutma, QR ile mobil okutma ve manuel
+-- giriş aynı tabloda yaşar. Puantaj motoru hangi kanaldan geldiğini
+-- bilmek zorunda değildir; böylece yeni bir kanal eklemek motoru
+-- değiştirmez.
 -- ---------------------------------------------------------------------
 
-CREATE TABLE card_reads (
+CREATE TABLE attendance_events (
     id               BIGSERIAL PRIMARY KEY,
     terminal_id      BIGINT      NOT NULL REFERENCES terminals(id),
-    card_uid         TEXT        NOT NULL,
-    -- Okumanın terminalde gerçekleştiği an (offline kuyrukta beklemiş olabilir)
+
+    -- card   : fiziksel kart okutuldu
+    -- qr     : terminalde dönen QR kod telefonla okutuldu
+    -- manual : yönetici tarafından elle girildi (düzeltme akışı)
+    channel          TEXT        NOT NULL DEFAULT 'card'
+                     CHECK (channel IN ('card', 'qr', 'manual')),
+
+    -- Yalnızca channel='card' için dolu
+    card_uid         TEXT,
+
+    -- Okutmanın gerçekleştiği an (offline kuyrukta beklemiş olabilir)
     read_at          TIMESTAMPTZ NOT NULL,
     -- Sunucuya ulaştığı an; read_at ile arasındaki fark offline süreyi verir
     received_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    -- Okuma anında çözümlenen personel. Kart sonradan başkasına devredilse
+
+    -- Okutma anında çözümlenen personel. Kart sonradan başkasına devredilse
     -- bile bu kayıt doğru kişiyi göstermeye devam eder.
     employee_id      BIGINT      REFERENCES employees(id),
     direction        TEXT        NOT NULL DEFAULT 'unknown'
                      CHECK (direction IN ('in', 'out', 'unknown')),
     photo_id         BIGINT      REFERENCES photos(id),
-    -- Edge agent tarafından üretilen benzersiz olay kimliği.
-    -- Offline kuyruk yeniden gönderim yaptığında mükerrer kayıt oluşmasını
-    -- engelleyen tek mekanizma budur.
+
+    -- --- Konum doğrulama (yalnızca channel='qr') ---------------------
+    -- KVKK: konum YALNIZCA okutma anında alınır. Sürekli konum takibi
+    -- yapılmaz ve bu tabloda da mümkün değildir - her satır tek bir ana
+    -- aittir, iz oluşturmaz.
+    latitude              DOUBLE PRECISION,
+    longitude             DOUBLE PRECISION,
+    location_accuracy_m   INTEGER,
+    -- inside / outside / unknown / not_required
+    geofence_status       TEXT    NOT NULL DEFAULT 'not_required'
+                          CHECK (geofence_status IN ('inside', 'outside',
+                                                     'unknown', 'not_required')),
+    -- Çit merkezine uzaklık; 'outside' kayıtlarını incelerken gerekir
+    distance_m            INTEGER,
+    -- Cihazın sahte konum sağlayıcı bildirdiği durum
+    mock_location_flagged BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Hangi kayıtlı cihazdan okutuldu
+    device_id             TEXT,
+
+    -- Edge agent veya mobil istemci tarafından üretilen benzersiz olay
+    -- kimliği. Offline kuyruk yeniden gönderim yaptığında mükerrer kayıt
+    -- oluşmasını engelleyen tek mekanizma budur.
     client_event_id  UUID        NOT NULL,
-    -- Tanınmayan kart, süresi dolmuş kart vb. durumlar
+
+    -- Tanınmayan kart, süresi dolmuş kart, çit dışı okutma vb.
     reject_reason    TEXT,
     raw              JSONB       NOT NULL DEFAULT '{}'::jsonb,
-    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    -- Kart kanalında card_uid zorunlu, QR kanalında anlamsız
+    CONSTRAINT card_channel_needs_uid
+        CHECK (channel <> 'card' OR card_uid IS NOT NULL)
 );
 
-CREATE UNIQUE INDEX idx_card_reads_idempotency
-    ON card_reads(terminal_id, client_event_id);
-CREATE INDEX idx_card_reads_employee_time ON card_reads(employee_id, read_at);
-CREATE INDEX idx_card_reads_terminal_time ON card_reads(terminal_id, read_at);
+CREATE UNIQUE INDEX idx_attendance_events_idempotency
+    ON attendance_events(terminal_id, client_event_id);
+CREATE INDEX idx_attendance_events_employee_time
+    ON attendance_events(employee_id, read_at);
+CREATE INDEX idx_attendance_events_terminal_time
+    ON attendance_events(terminal_id, read_at);
+-- Çit dışı okutmalar amir onayına düşer; bu sorgu sık çalışır
+CREATE INDEX idx_attendance_events_geofence
+    ON attendance_events(geofence_status, read_at)
+    WHERE geofence_status = 'outside';
 
-COMMENT ON TABLE card_reads IS
+COMMENT ON TABLE attendance_events IS
     'Değiştirilemez ham kayıt. Bu tabloya UPDATE veya DELETE uygulanmaz; '
     'düzeltmeler adjustments tablosuna yazılır.';
+
+COMMENT ON COLUMN attendance_events.latitude IS
+    'KVKK: yalnızca okutma anının konumu. Arka planda konum takibi '
+    'yapılmaz - bu sütun bir iz değil, tekil bir andır.';
+
+-- ---------------------------------------------------------------------
+-- Kayıtlı mobil cihazlar (QR kanalı için)
+--
+-- Cihaz bağlama, QR + konum kombinasyonunun üçüncü savunma katmanıdır:
+-- bir çalışanın hesabı ele geçirilse bile okutma yalnızca kayıtlı
+-- cihazdan yapılabilir.
+-- ---------------------------------------------------------------------
+
+CREATE TABLE employee_devices (
+    id            BIGSERIAL PRIMARY KEY,
+    employee_id   BIGINT      NOT NULL REFERENCES employees(id),
+    device_id     TEXT        NOT NULL,
+    device_name   TEXT,
+    platform      TEXT        CHECK (platform IN ('ios', 'android', 'web')),
+    registered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_used_at  TIMESTAMPTZ,
+    revoked_at    TIMESTAMPTZ,
+    revoked_by    BIGINT
+);
+
+CREATE INDEX idx_employee_devices_employee ON employee_devices(employee_id);
+-- Bir cihaz aynı anda yalnızca tek bir çalışana bağlı olabilir
+CREATE UNIQUE INDEX idx_employee_devices_active
+    ON employee_devices(device_id) WHERE revoked_at IS NULL;
 
 -- ---------------------------------------------------------------------
 -- Vardiya, tatil, izin
@@ -359,7 +455,7 @@ CREATE INDEX idx_attendance_date ON attendance_days(work_date);
 CREATE INDEX idx_attendance_status ON attendance_days(status, work_date);
 
 COMMENT ON TABLE attendance_days IS
-    'Türetilmiş tablo. card_reads + adjustments + shifts + leaves girdileriyle '
+    'Türetilmiş tablo. attendance_events + adjustments + shifts + leaves girdileriyle '
     'her zaman sıfırdan yeniden hesaplanabilir. Elle düzenlenmez.';
 
 -- ---------------------------------------------------------------------

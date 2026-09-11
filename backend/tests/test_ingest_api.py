@@ -36,7 +36,7 @@ def clean_db():
     with engine.begin() as conn:
         conn.execute(
             text(
-                "TRUNCATE card_reads, photos, cards, employees, terminals, "
+                "TRUNCATE attendance_events, photos, cards, employees, terminals, "
                 "sites, departments RESTART IDENTITY CASCADE"
             )
         )
@@ -155,7 +155,7 @@ def test_ayni_olay_iki_kez_gonderilirse_tek_kayit_olusur(client, seeded):
     assert second.status_code == 409
 
     with SessionLocal() as db:
-        count = db.execute(text("SELECT COUNT(*) FROM card_reads")).scalar_one()
+        count = db.execute(text("SELECT COUNT(*) FROM attendance_events")).scalar_one()
     assert count == 1
 
 
@@ -184,7 +184,7 @@ def test_taninmayan_kart_da_kaydedilir(client, seeded):
 
     with SessionLocal() as db:
         reason = db.execute(
-            text("SELECT reject_reason FROM card_reads WHERE card_uid = 'BILINMEYEN1'")
+            text("SELECT reject_reason FROM attendance_events WHERE card_uid = 'BILINMEYEN1'")
         ).scalar_one()
     assert reason == "unknown_card"
 
@@ -199,7 +199,7 @@ def test_fotograf_kaydedilir_ve_imha_tarihi_atanir(client, seeded):
         row = db.execute(
             text(
                 "SELECT p.byte_size, p.purge_after, p.storage_key "
-                "FROM photos p JOIN card_reads c ON c.photo_id = p.id"
+                "FROM photos p JOIN attendance_events c ON c.photo_id = p.id"
             )
         ).one()
 
@@ -214,7 +214,7 @@ def test_fotografsiz_okuma_kabul_edilir(client, seeded):
 
     assert response.status_code == 201
     with SessionLocal() as db:
-        photo_id = db.execute(text("SELECT photo_id FROM card_reads")).scalar_one()
+        photo_id = db.execute(text("SELECT photo_id FROM attendance_events")).scalar_one()
     assert photo_id is None
 
 
@@ -263,6 +263,6 @@ def test_gecmis_tarihli_okuma_kabul_edilir(client, seeded):
 
     assert response.status_code == 201
     with SessionLocal() as db:
-        row = db.execute(text("SELECT read_at, received_at FROM card_reads")).one()
+        row = db.execute(text("SELECT read_at, received_at FROM attendance_events")).one()
     # read_at korunur, received_at şimdiyi gösterir: offline süre ölçülebilir
     assert row.received_at > row.read_at

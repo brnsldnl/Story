@@ -7,7 +7,7 @@ from datetime import datetime
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
-from ..models import Card, CardRead, Employee, Terminal
+from ..models import AttendanceEvent, Card, Employee, Terminal
 
 
 def resolve_employee(db: Session, card_uid: str, read_at: datetime) -> Employee | None:
@@ -44,17 +44,17 @@ def resolve_direction(
     # Lokasyon bazlı bakıyoruz; farklı şubelerdeki hareketler birbirinin
     # yönünü bozmamalı.
     last_direction = db.execute(
-        select(CardRead.direction)
-        .join(Terminal, Terminal.id == CardRead.terminal_id)
+        select(AttendanceEvent.direction)
+        .join(Terminal, Terminal.id == AttendanceEvent.terminal_id)
         .where(
             and_(
-                CardRead.employee_id == employee.id,
-                CardRead.read_at < read_at,
-                CardRead.direction.in_(("in", "out")),
+                AttendanceEvent.employee_id == employee.id,
+                AttendanceEvent.read_at < read_at,
+                AttendanceEvent.direction.in_(("in", "out")),
                 Terminal.site_id == terminal.site_id,
             )
         )
-        .order_by(CardRead.read_at.desc())
+        .order_by(AttendanceEvent.read_at.desc())
         .limit(1)
     ).scalar_one_or_none()
 

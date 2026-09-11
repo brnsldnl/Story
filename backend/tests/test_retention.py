@@ -24,7 +24,7 @@ from app.services.retention import purge_expired_photos  # noqa: E402
 @pytest.fixture(autouse=True)
 def clean_db():
     with engine.begin() as conn:
-        conn.execute(text("TRUNCATE card_reads, photos RESTART IDENTITY CASCADE"))
+        conn.execute(text("TRUNCATE attendance_events, photos RESTART IDENTITY CASCADE"))
     yield
 
 

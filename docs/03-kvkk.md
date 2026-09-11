@@ -84,12 +84,28 @@ Ham geçiş kayıtları (`card_reads`) hiç değiştirilmez; düzeltmeler
 `adjustments` tablosunda onay zinciriyle yaşar. Hiçbir yönetici bir geçiş
 kaydını sessizce değiştiremez.
 
-## 9. Yurt dışına aktarım yok
+## 9. Konum verisi — yalnızca okutma anı
+
+⚠️ **Sürekli konum takibi yapılmıyor ve şema buna izin vermiyor.**
+
+QR kanalında konum yalnızca okutma anında alınır; `attendance_events`
+tablosundaki her satır tekil bir andır, bir iz oluşturmaz. Çalışanın mesai
+boyunca izlenmesi KVKK açısından çok daha ağır bir müdahaledir ve ölçülülük
+ilkesini zorlar.
+
+Mobil uygulama geliştirilirken:
+- Konum izni **"yalnızca uygulama kullanılırken"** istenmeli
+- Arka plan konum izni **talep edilmemeli**
+- Aydınlatma metninde konumun yalnızca okutma anında alındığı belirtilmeli
+
+Ayrıntı: [04-qr-ve-konum.md](04-qr-ve-konum.md)
+
+## 10. Yurt dışına aktarım yok
 
 Tüm yığın **yerinde (on-premise)** çalışır. Bulut servisi, harici API, yurt
 dışı bağımlılığı yoktur.
 
-## 10. Şeffaflık
+## 11. Şeffaflık
 
 Self-servis portal (planlanan): çalışan kendi giriş/çıkış kayıtlarını ve izin
 bakiyesini görür. Hem KVKK şeffaflık ilkesine hizmet eder hem de İK'ya gelen

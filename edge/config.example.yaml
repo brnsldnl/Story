@@ -50,6 +50,21 @@ camera:
   # USB kilitlenmelerine karşı her çekimde aç-kapa (varsayılan)
   keep_open: false
 
+# --- DÖNEN QR KOD (opsiyonel ikinci kanal) ----------------------------
+# Terminal ekranında birkaç saniyede bir değişen QR kod gösterilir;
+# çalışan telefonuyla okutur. Kart okuyucusu arızalandığında yedek,
+# okuyucu kurulmayan noktalarda tek kanal olarak kullanılabilir.
+#
+# Kod TAMAMEN YERELDE üretilir: internet kopsa bile ekranda dönmeye
+# devam eder.
+qr:
+  enabled: false
+  # Kurulumda sunucudan alınan, bu terminale özel anahtar.
+  # Sunucu bunu kendi ana anahtarından türetir, veritabanında saklamaz.
+  secret: "BURAYA_TERMINAL_QR_ANAHTARI"
+  period_seconds: 30
+  png_path: "/run/pdks-edge/qr.png"
+
 # --- YEREL KUYRUK -----------------------------------------------------
 queue_db_path: "/var/lib/pdks-edge/queue.db"
 photo_spool_dir: "/var/lib/pdks-edge/photos"

@@ -23,6 +23,20 @@ class CameraConfig:
 
 
 @dataclass
+class QRConfig:
+    """Terminal ekranında dönen QR kod ayarları."""
+
+    enabled: bool = False
+    # Kurulum sırasında sunucudan alınan, terminale özel gizli anahtar.
+    # Sunucu bunu kendi ana anahtarından türetir; burada saklanan kopya
+    # terminalin çevrimdışı da kod üretebilmesini sağlar.
+    secret: str = ""
+    period_seconds: int = 30
+    # Kiosk arayüzünün göstereceği dosya
+    png_path: str = "/run/pdks-edge/qr.png"
+
+
+@dataclass
 class ServerConfig:
     base_url: str = "https://pdks.local"
     api_key: str = ""
@@ -35,6 +49,7 @@ class EdgeConfig:
     terminal_code: str
     server: ServerConfig = field(default_factory=ServerConfig)
     camera: CameraConfig = field(default_factory=CameraConfig)
+    qr: QRConfig = field(default_factory=QRConfig)
     reader: dict[str, Any] = field(default_factory=lambda: {"type": "mock"})
 
     queue_db_path: str = "/var/lib/pdks-edge/queue.db"
@@ -60,6 +75,7 @@ class EdgeConfig:
             terminal_code=data["terminal_code"],
             server=ServerConfig(**data.get("server", {})),
             camera=CameraConfig(**data.get("camera", {})),
+            qr=QRConfig(**data.get("qr", {})),
             reader=data.get("reader", {"type": "mock"}),
             queue_db_path=data.get("queue_db_path", cls.queue_db_path),
             photo_spool_dir=data.get("photo_spool_dir", cls.photo_spool_dir),

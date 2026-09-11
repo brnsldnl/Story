@@ -16,6 +16,7 @@ camera = ["opencv-python-headless>=4.10"]  # Apache-2.0
 pcsc = ["pyscard>=2.0"]                    # LGPL-2.1
 hid = ["evdev>=1.7"]                       # BSD
 serial = ["pyserial>=3.5"]                 # BSD
+qr = ["qrcode[pil]>=7.4"]                   # BSD
 dev = ["pytest>=8.0", "ruff>=0.6"]
 
 [project.scripts]

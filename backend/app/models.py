@@ -15,6 +15,7 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     Text,
@@ -34,6 +35,10 @@ class Site(Base):
     name: Mapped[str] = mapped_column(Text)
     timezone: Mapped[str] = mapped_column(Text, default="Europe/Istanbul")
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    geofence_radius_m: Mapped[int] = mapped_column(Integer, default=150)
+    geofence_enforcement: Mapped[str] = mapped_column(Text, default="flag")
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
@@ -48,6 +53,10 @@ class Terminal(Base):
     direction_mode: Mapped[str] = mapped_column(Text, default="toggle")
     api_key_hash: Mapped[str] = mapped_column(Text)
     camera_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    qr_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    geofence_radius_m: Mapped[int | None] = mapped_column(Integer, nullable=True)
     last_seen_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -136,14 +145,18 @@ class Photo(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-class CardRead(Base):
-    """Ham okuma. Bu tabloya UPDATE/DELETE uygulanmaz."""
+class AttendanceEvent(Base):
+    """Ham okutma kaydı. Bu tabloya UPDATE/DELETE uygulanmaz.
 
-    __tablename__ = "card_reads"
+    Kanaldan bağımsızdır: kart, QR ve manuel giriş aynı tabloda yaşar.
+    """
+
+    __tablename__ = "attendance_events"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     terminal_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("terminals.id"))
-    card_uid: Mapped[str] = mapped_column(Text)
+    channel: Mapped[str] = mapped_column(Text, default="card")
+    card_uid: Mapped[str | None] = mapped_column(Text, nullable=True)
     read_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     employee_id: Mapped[int | None] = mapped_column(
@@ -153,6 +166,16 @@ class CardRead(Base):
     photo_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("photos.id"), nullable=True
     )
+    # Konum doğrulama - yalnızca channel='qr' için dolu.
+    # KVKK: bu alanlar okutma ANINI taşır, bir iz değildir.
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    location_accuracy_m: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    geofence_status: Mapped[str] = mapped_column(Text, default="not_required")
+    distance_m: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    mock_location_flagged: Mapped[bool] = mapped_column(Boolean, default=False)
+    device_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     client_event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     reject_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw: Mapped[dict] = mapped_column(JSONB, default=dict)
@@ -161,6 +184,30 @@ class CardRead(Base):
     employee: Mapped[Employee | None] = relationship()
     terminal: Mapped[Terminal] = relationship()
     photo: Mapped[Photo | None] = relationship()
+
+
+class EmployeeDevice(Base):
+    """QR kanalı için kayıtlı mobil cihaz.
+
+    Cihaz bağlama üçüncü savunma katmanıdır: hesap ele geçirilse bile
+    okutma yalnızca kayıtlı cihazdan yapılabilir.
+    """
+
+    __tablename__ = "employee_devices"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    employee_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("employees.id"))
+    device_id: Mapped[str] = mapped_column(Text)
+    device_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    platform: Mapped[str | None] = mapped_column(Text, nullable=True)
+    registered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    revoked_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
 
 class Shift(Base):

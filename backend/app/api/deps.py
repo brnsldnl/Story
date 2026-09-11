@@ -5,12 +5,15 @@ from __future__ import annotations
 import hashlib
 import hmac
 
+import jwt
 from fastapi import Depends, Header, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..core.db import get_db
-from ..models import Terminal
+from ..core.security import decode_access_token
+from ..models import Employee, Terminal, User
 
 
 def hash_terminal_key(raw_key: str) -> str:
@@ -43,3 +46,56 @@ def authenticate_terminal(
         )
 
     return terminal
+
+
+bearer_scheme = HTTPBearer(auto_error=False)
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    """Erişim jetonundan oturum sahibini çözer."""
+    if credentials is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Oturum açılmamış.")
+
+    try:
+        claims = decode_access_token(credentials.credentials)
+    except jwt.PyJWTError as exc:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, "Oturum geçersiz veya süresi dolmuş."
+        ) from exc
+
+    user = db.execute(
+        select(User).where(User.id == int(claims["sub"]))
+    ).scalar_one_or_none()
+
+    if user is None or not user.active:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Kullanıcı bulunamadı.")
+
+    return user
+
+
+def get_current_employee(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Employee:
+    """Oturum sahibinin personel kaydını döner.
+
+    QR ile okutma bir personel adına yapılır; personel kaydı olmayan bir
+    yönetici hesabı kendi adına okutma yapamaz.
+    """
+    if user.employee_id is None:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Bu hesap bir personel kaydına bağlı değil.",
+        )
+
+    employee = db.execute(
+        select(Employee).where(Employee.id == user.employee_id)
+    ).scalar_one_or_none()
+
+    if employee is None or not employee.active:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Personel kaydı aktif değil.")
+
+    return employee

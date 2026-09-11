@@ -8,6 +8,7 @@ Tüm bileşenler açık kaynaktır; ticari lisans gerektirmez.
 ## Ne yapar
 
 - Kart okutulduğunda giriş/çıkış kaydı ve fotoğraf çeker
+- Alternatif olarak dönen QR kod + konum doğrulaması ile mobilden okutma
 - Çalışılan süreyi, geç kalmayı, erken çıkışı ve mesaiyi hesaplar
 - Gece vardiyası, mola, resmi tatil ve izinleri modeller
 - Onaylı / onaysız mesai ayrımı yapar
@@ -32,6 +33,7 @@ panel/          Web panel (planlanan)
 | [docs/01-mimari.md](docs/01-mimari.md) | Teknoloji yığını, veri akışı, Logo entegrasyonu |
 | [docs/02-donanim.md](docs/02-donanim.md) | **Hangi donanım alınmalı**, kurulum adımları |
 | [docs/03-kvkk.md](docs/03-kvkk.md) | KVKK maddelerinin kod karşılıkları |
+| [docs/04-qr-ve-konum.md](docs/04-qr-ve-konum.md) | **QR kod + konum doğrulama** ikinci kanalı |
 
 ## Hızlı başlangıç
 
@@ -79,11 +81,14 @@ Puantaj motoru veritabanından bağımsızdır; iş kuralları
 | Veritabanı şeması | ✅ Tamam |
 | Edge agent (okuyucu + kamera + offline kuyruk) | ✅ Tamam |
 | Veri alım API'si (mükerrer korumalı) | ✅ Tamam |
+| Dönen QR + konum doğrulama + cihaz bağlama | ✅ Tamam |
+| Oturum açma ve JWT | ✅ Tamam |
 | Puantaj motoru (vardiya, gece, mesai, mola) | ✅ Tamam |
 | KVKK fotoğraf imha işi | ✅ Tamam |
 | Logo personel okuma (SQL) | ✅ Tamam |
 | Logo puantaj yazma (Tiger Objects REST) | ⏸️ Bordro kullanılmadığı için beklemede |
-| Kullanıcı girişi ve yetkilendirme | 🔲 Sonraki adım |
+| Mobil uygulama (QR okutma istemcisi) | 🔲 Sonraki adım |
+| Rol bazlı yetki kapsamı (kapsam filtreleri) | 🔲 Sonraki adım |
 | Web panel | 🔲 Sonraki adım |
 | Raporlar ve Excel aktarımı | 🔲 Sonraki adım |
 | İzin ve vardiya yönetimi ekranları | 🔲 Sonraki adım |

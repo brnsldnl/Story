@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 
 from ..core.config import get_settings
 from ..core.db import get_db
-from ..models import CardRead, Photo, Terminal
+from ..models import AttendanceEvent, Photo, Terminal
 from ..services.photo_storage import PhotoStorage
 from ..services.resolver import resolve_direction, resolve_employee
 from .deps import authenticate_terminal
@@ -100,8 +100,9 @@ def ingest_card_read(
     reject_reason = None if employee else "unknown_card"
     direction = resolve_direction(db, terminal, employee, read_at)
 
-    card_read = CardRead(
+    event = AttendanceEvent(
         terminal_id=terminal.id,
+        channel="card",
         card_uid=card_uid,
         read_at=read_at,
         received_at=now,
@@ -113,7 +114,7 @@ def ingest_card_read(
         raw=data.get("raw", {}),
         created_at=now,
     )
-    db.add(card_read)
+    db.add(event)
 
     try:
         db.commit()
@@ -126,8 +127,8 @@ def ingest_card_read(
         ) from None
 
     return {
-        "id": card_read.id,
-        "employee_id": card_read.employee_id,
+        "id": event.id,
+        "employee_id": event.employee_id,
         "direction": direction,
         "recognized": employee is not None,
         # Terminal ekranında gösterilecek geri bildirim
