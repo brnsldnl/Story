@@ -5,20 +5,15 @@
 
 from __future__ import annotations
 
-import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import text
 
-os.environ.setdefault(
-    "DATABASE_URL", "postgresql+psycopg://pdks:pdks@localhost:5432/pdks"
-)
-
-from app.core.db import SessionLocal, engine  # noqa: E402
-from app.models import Photo  # noqa: E402
-from app.services.photo_storage import PhotoStorage  # noqa: E402
-from app.services.retention import purge_expired_photos  # noqa: E402
+from app.core.db import SessionLocal, engine
+from app.models import Photo
+from app.services.photo_storage import PhotoStorage
+from app.services.retention import purge_expired_photos
 
 
 @pytest.fixture(autouse=True)
@@ -34,7 +29,7 @@ def storage(tmp_path):
 
 
 def add_photo(db, storage, *, purge_after: datetime) -> tuple[Photo, str]:
-    captured = datetime.now(timezone.utc)
+    captured = datetime.now(UTC)
     key, digest = storage.save(b"sahte-jpeg-verisi", captured)
     photo = Photo(
         storage_key=key,
@@ -52,7 +47,7 @@ def add_photo(db, storage, *, purge_after: datetime) -> tuple[Photo, str]:
 def test_suresi_dolan_fotograf_diskten_gercekten_silinir(storage, tmp_path):
     with SessionLocal() as db:
         photo, key = add_photo(
-            db, storage, purge_after=datetime.now(timezone.utc) - timedelta(days=1)
+            db, storage, purge_after=datetime.now(UTC) - timedelta(days=1)
         )
         assert (tmp_path / key).exists()
 
@@ -68,7 +63,7 @@ def test_suresi_dolan_fotograf_diskten_gercekten_silinir(storage, tmp_path):
 def test_suresi_dolmayan_fotograf_korunur(storage, tmp_path):
     with SessionLocal() as db:
         photo, key = add_photo(
-            db, storage, purge_after=datetime.now(timezone.utc) + timedelta(days=30)
+            db, storage, purge_after=datetime.now(UTC) + timedelta(days=30)
         )
 
         stats = purge_expired_photos(db, storage)
@@ -82,7 +77,7 @@ def test_suresi_dolmayan_fotograf_korunur(storage, tmp_path):
 def test_imha_tekrar_calistirilabilir(storage):
     """İş iki kez çalışırsa ikinci çalıştırma bir şey yapmamalı."""
     with SessionLocal() as db:
-        add_photo(db, storage, purge_after=datetime.now(timezone.utc) - timedelta(days=1))
+        add_photo(db, storage, purge_after=datetime.now(UTC) - timedelta(days=1))
 
         first = purge_expired_photos(db, storage)
         second = purge_expired_photos(db, storage)
@@ -95,7 +90,7 @@ def test_diskte_olmayan_dosya_isi_durdurmaz(storage, tmp_path):
     """Dosya elle silinmişse iş çuvallamamalı, kaydı yine de kapatmalı."""
     with SessionLocal() as db:
         photo, key = add_photo(
-            db, storage, purge_after=datetime.now(timezone.utc) - timedelta(days=1)
+            db, storage, purge_after=datetime.now(UTC) - timedelta(days=1)
         )
         (tmp_path / key).unlink()
 

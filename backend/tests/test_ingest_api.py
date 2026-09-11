@@ -8,22 +8,16 @@ ikinci bir puantaj hareketi oluşmamalıdır.
 from __future__ import annotations
 
 import json
-import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
-os.environ.setdefault(
-    "DATABASE_URL", "postgresql+psycopg://pdks:pdks@localhost:5432/pdks"
-)
-os.environ.setdefault("PHOTO_STORAGE_PATH", "/tmp/pdks-test-photos")
-
-from app.api.deps import hash_terminal_key  # noqa: E402
-from app.core.db import SessionLocal, engine  # noqa: E402
-from app.main import app  # noqa: E402
+from app.api.deps import hash_terminal_key
+from app.core.db import SessionLocal, engine
+from app.main import app
 
 TERMINAL_CODE = "TEST-KAPI-1"
 TERMINAL_KEY = "test-anahtar-123"
@@ -46,7 +40,7 @@ def clean_db():
 @pytest.fixture()
 def seeded():
     """Bir lokasyon, bir terminal, bir personel ve kartı oluşturur."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with SessionLocal() as db:
         site_id = db.execute(
             text(
@@ -110,7 +104,7 @@ def card_read_payload(**overrides):
     payload = {
         "client_event_id": str(uuid.uuid4()),
         "card_uid": CARD_UID,
-        "read_at": datetime.now(timezone.utc).isoformat(),
+        "read_at": datetime.now(UTC).isoformat(),
         "technology": "mifare",
         "raw": {},
     }
@@ -160,7 +154,7 @@ def test_ayni_olay_iki_kez_gonderilirse_tek_kayit_olusur(client, seeded):
 
 
 def test_yon_sirayla_giris_cikis_olur(client, seeded):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     first = post_read(client, card_read_payload(read_at=now.isoformat()))
     second = post_read(
@@ -204,7 +198,7 @@ def test_fotograf_kaydedilir_ve_imha_tarihi_atanir(client, seeded):
         ).one()
 
     assert row.byte_size == len(b"\xff\xd8\xff\xe0sahte-jpeg")
-    assert row.purge_after > datetime.now(timezone.utc)
+    assert row.purge_after > datetime.now(UTC)
     assert row.storage_key.endswith(".jpg")
 
 
@@ -258,7 +252,7 @@ def test_heartbeat_terminal_son_gorulme_zamanini_gunceller(client, seeded):
 
 def test_gecmis_tarihli_okuma_kabul_edilir(client, seeded):
     """Offline kalmış terminal günler sonra veri gönderebilir."""
-    old = datetime.now(timezone.utc) - timedelta(days=2)
+    old = datetime.now(UTC) - timedelta(days=2)
     response = post_read(client, card_read_payload(read_at=old.isoformat()))
 
     assert response.status_code == 201

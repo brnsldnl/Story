@@ -6,7 +6,7 @@ parça odur.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -25,7 +25,7 @@ def queue(tmp_path):
 def test_enqueue_persists_read_and_photo(queue, tmp_path):
     event_id = queue.enqueue(
         card_uid="04A2B3C4",
-        read_at=datetime(2026, 3, 2, 6, 42, tzinfo=timezone.utc),
+        read_at=datetime(2026, 3, 2, 6, 42, tzinfo=UTC),
         technology="mifare",
         photo=b"\xff\xd8fake-jpeg",
     )
@@ -44,14 +44,14 @@ def test_enqueue_persists_read_and_photo(queue, tmp_path):
 
 
 def test_photo_is_optional(queue):
-    queue.enqueue(card_uid="DEADBEEF", read_at=datetime.now(timezone.utc))
+    queue.enqueue(card_uid="DEADBEEF", read_at=datetime.now(UTC))
     item = next(iter(queue.due()))
     assert item.photo_path is None
 
 
 def test_mark_sent_removes_record_and_local_photo(queue, tmp_path):
     queue.enqueue(
-        card_uid="04A2B3C4", read_at=datetime.now(timezone.utc), photo=b"jpeg-bytes"
+        card_uid="04A2B3C4", read_at=datetime.now(UTC), photo=b"jpeg-bytes"
     )
     item = next(iter(queue.due()))
     photo_path = tmp_path / "photos" / f"{item.client_event_id}.jpg"
@@ -65,7 +65,7 @@ def test_mark_sent_removes_record_and_local_photo(queue, tmp_path):
 
 
 def test_failed_send_is_retried_with_backoff(queue):
-    queue.enqueue(card_uid="04A2B3C4", read_at=datetime.now(timezone.utc))
+    queue.enqueue(card_uid="04A2B3C4", read_at=datetime.now(UTC))
     item = next(iter(queue.due()))
 
     queue.mark_failed(item, "bağlantı reddedildi")
@@ -81,7 +81,7 @@ def test_queue_survives_restart(tmp_path):
     photos = str(tmp_path / "photos")
 
     first = OfflineQueue(db_path=db, photo_dir=photos)
-    first.enqueue(card_uid="04A2B3C4", read_at=datetime.now(timezone.utc), photo=b"x")
+    first.enqueue(card_uid="04A2B3C4", read_at=datetime.now(UTC), photo=b"x")
     first.close()
 
     second = OfflineQueue(db_path=db, photo_dir=photos)
@@ -94,9 +94,9 @@ def test_queue_survives_restart(tmp_path):
 
 def test_reads_are_drained_oldest_first(queue):
     """Gönderim sırası korunmalı: giriş/çıkış sırası puantajı belirler."""
-    queue.enqueue("AAA", datetime(2026, 3, 2, 8, 0, tzinfo=timezone.utc))
-    queue.enqueue("BBB", datetime(2026, 3, 2, 7, 0, tzinfo=timezone.utc))
-    queue.enqueue("CCC", datetime(2026, 3, 2, 9, 0, tzinfo=timezone.utc))
+    queue.enqueue("AAA", datetime(2026, 3, 2, 8, 0, tzinfo=UTC))
+    queue.enqueue("BBB", datetime(2026, 3, 2, 7, 0, tzinfo=UTC))
+    queue.enqueue("CCC", datetime(2026, 3, 2, 9, 0, tzinfo=UTC))
 
     uids = [item.card_uid for item in queue.due()]
     assert uids == ["BBB", "AAA", "CCC"]
@@ -105,6 +105,6 @@ def test_reads_are_drained_oldest_first(queue):
 def test_event_ids_are_unique(queue):
     """Mükerrer kayıt korumasının dayandığı garanti."""
     ids = {
-        queue.enqueue(f"CARD{i}", datetime.now(timezone.utc)) for i in range(50)
+        queue.enqueue(f"CARD{i}", datetime.now(UTC)) for i in range(50)
     }
     assert len(ids) == 50

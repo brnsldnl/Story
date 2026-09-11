@@ -39,7 +39,7 @@ def build_reader(config: dict) -> CardReader:
     if kind == "mock":
         from .mock import MockReader
 
-        return MockReader(trigger_file=config.get("trigger_file", "/tmp/pdks_card"))
+        return MockReader(trigger_file=config.get("trigger_file"))
 
     raise ValueError(
         f"Bilinmeyen okuyucu tipi: {kind!r}. "

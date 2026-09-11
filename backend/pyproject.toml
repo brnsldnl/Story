@@ -10,11 +10,11 @@ dependencies = [
     "uvicorn[standard]>=0.30",  # BSD
     "sqlalchemy>=2.0",          # MIT
     "psycopg[binary]>=3.2",     # LGPL-3.0 (kütüphane olarak kullanım serbest)
-    "pydantic>=2.8",            # MIT
+    "pydantic[email]>=2.8",     # MIT (EmailStr icin email-validator)
     "pydantic-settings>=2.4",   # MIT
     "python-multipart>=0.0.9",  # Apache-2.0
     "httpx>=0.27",              # BSD
-    "passlib[bcrypt]>=1.7",     # BSD
+    "bcrypt>=4.0",              # Apache-2.0
     "pyjwt>=2.9",               # MIT
     "apscheduler>=3.10",        # MIT
 ]

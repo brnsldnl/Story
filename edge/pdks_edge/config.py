@@ -10,6 +10,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .paths import (
+    default_photo_spool,
+    default_qr_png,
+    default_queue_db,
+)
+
 
 @dataclass
 class CameraConfig:
@@ -33,7 +39,7 @@ class QRConfig:
     secret: str = ""
     period_seconds: int = 30
     # Kiosk arayüzünün göstereceği dosya
-    png_path: str = "/run/pdks-edge/qr.png"
+    png_path: str = field(default_factory=default_qr_png)
 
 
 @dataclass
@@ -52,8 +58,8 @@ class EdgeConfig:
     qr: QRConfig = field(default_factory=QRConfig)
     reader: dict[str, Any] = field(default_factory=lambda: {"type": "mock"})
 
-    queue_db_path: str = "/var/lib/pdks-edge/queue.db"
-    photo_spool_dir: str = "/var/lib/pdks-edge/photos"
+    queue_db_path: str = field(default_factory=default_queue_db)
+    photo_spool_dir: str = field(default_factory=default_photo_spool)
 
     read_timeout_seconds: float = 1.0
     heartbeat_interval_seconds: float = 60.0
@@ -77,13 +83,13 @@ class EdgeConfig:
             camera=CameraConfig(**data.get("camera", {})),
             qr=QRConfig(**data.get("qr", {})),
             reader=data.get("reader", {"type": "mock"}),
-            queue_db_path=data.get("queue_db_path", cls.queue_db_path),
-            photo_spool_dir=data.get("photo_spool_dir", cls.photo_spool_dir),
-            read_timeout_seconds=data.get("read_timeout_seconds", cls.read_timeout_seconds),
+            queue_db_path=data.get("queue_db_path") or default_queue_db(),
+            photo_spool_dir=data.get("photo_spool_dir") or default_photo_spool(),
+            read_timeout_seconds=data.get("read_timeout_seconds", 1.0),
             heartbeat_interval_seconds=data.get(
-                "heartbeat_interval_seconds", cls.heartbeat_interval_seconds
+                "heartbeat_interval_seconds", 60.0
             ),
             duplicate_window_seconds=data.get(
-                "duplicate_window_seconds", cls.duplicate_window_seconds
+                "duplicate_window_seconds", 10.0
             ),
         )

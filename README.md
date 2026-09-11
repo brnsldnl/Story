@@ -34,12 +34,23 @@ panel/          Web panel (planlanan)
 | [docs/02-donanim.md](docs/02-donanim.md) | **Hangi donanım alınmalı**, kurulum adımları |
 | [docs/03-kvkk.md](docs/03-kvkk.md) | KVKK maddelerinin kod karşılıkları |
 | [docs/04-qr-ve-konum.md](docs/04-qr-ve-konum.md) | **QR kod + konum doğrulama** ikinci kanalı |
+| [docs/05-yerel-gelistirme.md](docs/05-yerel-gelistirme.md) | **Windows'ta yerel kurulum**, gerçek Logo ve kart okuyucu testi |
 
 ## Hızlı başlangıç
 
+**Windows'ta yerel geliştirme** (ayrıntı: [docs/05-yerel-gelistirme.md](docs/05-yerel-gelistirme.md)):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\kur.ps1    # kurulum
+powershell -ExecutionPolicy Bypass -File scripts\test.ps1   # 100 test
+powershell -ExecutionPolicy Bypass -File scripts\calistir.ps1
+```
+
+**Linux / üretim:**
+
 ```bash
 cp .env.example .env
-# .env içindeki POSTGRES_PASSWORD ve JWT_SECRET değerlerini doldurun
+# .env içindeki POSTGRES_PASSWORD, JWT_SECRET ve QR_MASTER_SECRET değerlerini doldurun
 docker compose up -d
 curl http://localhost:8000/health
 ```

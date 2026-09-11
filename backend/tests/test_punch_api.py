@@ -6,23 +6,17 @@ kayıtsız cihaz, başkasının cihazı, çit dışı konum, sahte konum.
 
 from __future__ import annotations
 
-import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
-os.environ.setdefault(
-    "DATABASE_URL", "postgresql+psycopg://pdks:pdks@localhost:5432/pdks"
-)
-os.environ.setdefault("PHOTO_STORAGE_PATH", "/tmp/pdks-test-photos")
-
-from app.core.db import SessionLocal, engine  # noqa: E402
-from app.core.security import hash_password  # noqa: E402
-from app.main import app  # noqa: E402
-from app.services.qr_token import (  # noqa: E402
+from app.core.db import SessionLocal, engine
+from app.core.security import hash_password
+from app.main import app
+from app.services.qr_token import (
     DEFAULT_PERIOD_SECONDS,
     derive_terminal_secret,
     generate_token,
@@ -50,7 +44,7 @@ def clean_db():
 @pytest.fixture()
 def seeded():
     """Çit tanımlı bir lokasyon, QR açık terminal, personel, kullanıcı, cihaz."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with SessionLocal() as db:
         site_id = db.execute(
             text(
@@ -207,7 +201,7 @@ def test_suresi_dolmus_qr_reddedilir(client, token, seeded):
     eski = generate_token(
         secret,
         TERMINAL_CODE,
-        now=datetime.now(timezone.utc).timestamp() - DEFAULT_PERIOD_SECONDS * 10,
+        now=datetime.now(UTC).timestamp() - DEFAULT_PERIOD_SECONDS * 10,
     )
 
     response = punch(client, token, qr_token=eski)
@@ -243,7 +237,7 @@ def test_kayitsiz_cihazdan_okutma_reddedilir(client, token, seeded):
 
 def test_baskasinin_cihazindan_okutma_reddedilir(client, token, seeded):
     """Kart ödünç vermenin mobil karşılığı."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with SessionLocal() as db:
         db.execute(
             text(

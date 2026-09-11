@@ -7,6 +7,8 @@ from functools import lru_cache
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from .paths import default_photo_dir
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -42,7 +44,7 @@ class Settings(BaseSettings):
     qr_require_registered_device: bool = True
 
     # --- Fotoğraf deposu ve KVKK saklama süresi ---
-    photo_storage_path: str = "/var/lib/pdks/photos"
+    photo_storage_path: str = Field(default_factory=default_photo_dir)
     # KVKK: fotoğraflar bu süre sonunda otomatik ve GERÇEKTEN silinir.
     photo_retention_days: int = 60
 

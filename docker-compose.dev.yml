@@ -1,0 +1,32 @@
+# Yerel geliştirme: YALNIZCA veritabanı.
+#
+# Uygulamayı kaynaktan (uvicorn ile) çalıştırdığınız için API konteyneri
+# gerekmez; böylece kod değişikliği anında yansır.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# Üretim kurulumu için docker-compose.yml kullanın.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: pdks-dev-db
+    environment:
+      POSTGRES_DB: pdks
+      POSTGRES_USER: pdks
+      POSTGRES_PASSWORD: pdks
+    ports:
+      # Yalnızca kendi makinenizden erişilebilir
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pdks-dev-db:/var/lib/postgresql/data
+      # Şema ilk açılışta otomatik uygulanır
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pdks -d pdks"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pdks-dev-db:

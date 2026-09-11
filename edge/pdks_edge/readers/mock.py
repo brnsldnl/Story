@@ -19,8 +19,10 @@ log = logging.getLogger(__name__)
 class MockReader(CardReader):
     name = "mock"
 
-    def __init__(self, trigger_file: str = "/tmp/pdks_card", uids: list[str] | None = None):
-        self._trigger = Path(trigger_file)
+    def __init__(self, trigger_file: str | None = None, uids: list[str] | None = None):
+        from ..paths import default_mock_trigger
+
+        self._trigger = Path(trigger_file or default_mock_trigger())
         self._uids = uids or []
         self._index = 0
 

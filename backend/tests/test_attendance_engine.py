@@ -6,7 +6,7 @@ değiştiğinde önce buradaki beklentiler değişmeli, sonra motor.
 
 from __future__ import annotations
 
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 
 import pytest
 
@@ -20,7 +20,7 @@ from app.services.attendance_engine import (
     pair_punches,
 )
 
-TZ = timezone.utc
+TZ = UTC
 
 GUNDUZ = ShiftRule(
     code="GUNDUZ",
